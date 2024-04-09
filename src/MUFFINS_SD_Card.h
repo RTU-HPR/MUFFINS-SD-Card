@@ -57,6 +57,7 @@ public:
    * @brief Construct a new SD Card Wrapper object
    */
   SD_Card(String component_name = "SD Card", void (*info_function)(String) = nullptr, void (*error_function)(String) = nullptr);
+  ~SD_Card();
 
   /**
    * @brief Initialize the SD card

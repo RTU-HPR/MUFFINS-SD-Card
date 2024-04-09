@@ -5,12 +5,22 @@ SD_Card::SD_Card(String component_name, void (*info_function)(String), void (*er
   return;
 }
 
+SD_Card::~SD_Card()
+{
+  if (initialized())
+  {
+    _sd->end();
+  }
+  return;
+}
+
 bool SD_Card::begin(const Config &config)
 {
   // Save the SD card configuration locally
   _sd_card_config = config;
 
   // Initialize the SD card
+  _sd = &SDFS;
   SDFSConfig sd_config;
   sd_config.setCSPin(_sd_card_config.cs_pin);
   sd_config.setSPI(*_sd_card_config.spi_bus);
@@ -48,6 +58,8 @@ bool SD_Card::card_info()
     return false;
   }
 
+  info("Getting card info... Can take a while!");
+
   // Get info about the flash
   FSInfo64 fs_info64;
   _sd->info64(fs_info64);
@@ -55,22 +67,33 @@ bool SD_Card::card_info()
   char total_bytes_string_buffer[21];
   char used_bytes_string_buffer[21];
   char free_bytes_string_buffer[21];
-  sprintf(total_bytes_string_buffer, "%", PRIu64, fs_info64.totalBytes);
-  sprintf(used_bytes_string_buffer, "%", PRIu64, fs_info64.usedBytes);
-  sprintf(free_bytes_string_buffer, "%", PRIu64, fs_info64.totalBytes - fs_info64.usedBytes);
-  info("Total space: " + String(total_bytes_string_buffer) + " bytes");
-  info("Used space: " + String(used_bytes_string_buffer) + " bytes");
-  info("Free space: " + String(free_bytes_string_buffer) + " bytes");
+  sprintf(total_bytes_string_buffer, "%" PRIu64, fs_info64.totalBytes);
+  sprintf(used_bytes_string_buffer, "%" PRIu64, fs_info64.usedBytes);
+  sprintf(free_bytes_string_buffer, "%" PRIu64, fs_info64.totalBytes - fs_info64.usedBytes);
+
+  // Convert to megabytes
+  double total_mb = fs_info64.totalBytes / (1024.0 * 1024.0);
+  double used_mb = fs_info64.usedBytes / (1024.0 * 1024.0);
+  double free_mb = (fs_info64.totalBytes - fs_info64.usedBytes) / (1024.0 * 1024.0);
+
+  // Convert to gigabytes
+  double total_gb = fs_info64.totalBytes / (1024.0 * 1024.0 * 1024.0);
+  double used_gb = fs_info64.usedBytes / (1024.0 * 1024.0 * 1024.0);
+  double free_gb = (fs_info64.totalBytes - fs_info64.usedBytes) / (1024.0 * 1024.0 * 1024.0);
+
+  info("Total space: " + String(total_bytes_string_buffer) + " bytes / " + String(total_mb) + " MB / " + String(total_gb) + " GB");
+  info("Used space: " + String(used_bytes_string_buffer) + " bytes / " + String(used_mb) + " MB / " + String(used_gb) + " GB");
+  info("Free space: " + String(free_bytes_string_buffer) + " bytes / " + String(free_mb) + " MB / " + String(free_gb) + " GB");
 
   return true;
 }
 
 bool SD_Card::format()
 {
-  if (!initialized())
+  if (initialized())
   {
-    error("Not initialized!");
-    return false;
+    // Stop the filesystem
+    _sd->end();
   }
 
   if (!_sd->format())
@@ -80,7 +103,7 @@ bool SD_Card::format()
   }
 
   info("Formatted SD card!");
-  info("SD card is not initialized anymore!");
+  info("After formatting SD card is not initialized anymore!");
 
   set_initialized(false);
 
@@ -95,7 +118,7 @@ bool SD_Card::write_telemetry(const String &msg)
     return false;
   }
 
-  return _write_to_file(_file_paths.telemetry, msg);
+  return _write_to_file(msg, _file_paths.telemetry);
 }
 
 bool SD_Card::write_info(const String &msg)
@@ -106,7 +129,7 @@ bool SD_Card::write_info(const String &msg)
     return false;
   }
 
-  return _write_to_file(_file_paths.info, msg);
+  return _write_to_file(msg, _file_paths.info);
 }
 
 bool SD_Card::write_error(const String &msg)
@@ -117,7 +140,7 @@ bool SD_Card::write_error(const String &msg)
     return false;
   }
 
-  return _write_to_file(_file_paths.error, msg);
+  return _write_to_file(msg, _file_paths.error);
 }
 
 bool SD_Card::_begin_files()
