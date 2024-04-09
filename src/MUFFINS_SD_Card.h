@@ -54,11 +54,15 @@ private:
 
 public:
   /**
-   * @brief Construct a new SD Card Wrapper object
+   * @brief Construct a new SD Card instance
    */
   SD_Card(String component_name = "SD Card", void (*info_function)(String) = nullptr, void (*error_function)(String) = nullptr);
-  ~SD_Card();
 
+  /**
+   * @brief Destroy the SD Card instance
+   */
+  ~SD_Card();
+  
   /**
    * @brief Initialize the SD card
    * @param config The SD_Card_Wrapper configuration
